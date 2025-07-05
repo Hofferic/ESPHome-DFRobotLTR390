@@ -18,7 +18,7 @@ logger:
 
 # Include the custom component from GitHub
 external_components:
-  - source: github://yourusername/esphome-dfrobot-ltr390
+  - source: github://Hofferic/ESPHome-DFRobotLTR390
     components: [ dfrobot_ltr390 ]
 
 # I2C configuration
