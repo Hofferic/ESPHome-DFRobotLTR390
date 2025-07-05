@@ -1,0 +1,52 @@
+esphome:
+  name: dfrobot-ltr390-example
+  platform: ESP32
+  board: esp32dev
+
+wifi:
+  ssid: "your-wifi-ssid"
+  password: "your-wifi-password"
+
+api:
+  encryption:
+    key: "your-api-key"
+
+ota:
+  password: "your-ota-password"
+
+logger:
+
+# Include the custom component from GitHub
+external_components:
+  - source: github://yourusername/esphome-dfrobot-ltr390
+    components: [ dfrobot_ltr390 ]
+
+# I2C configuration
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+  frequency: 400000
+
+# DFRobot LTR390 sensor configuration
+dfrobot_ltr390:
+  - id: my_ltr390
+    address: 0x1C
+    
+sensor:
+  - platform: dfrobot_ltr390
+    dfrobot_ltr390_id: my_ltr390
+    update_interval: 60s
+    
+    # Configure which sensors you want
+    ambient_light:
+      name: "Ambient Light"
+      unit_of_measurement: "lx"
+      
+    uv_index:
+      name: "UV Index"
+      
+    # Optional settings (these are defaults)
+    gain: 3                    # Options: 1, 3, 6, 9, 18
+    resolution: 18             # Options: 13, 16, 17, 18, 19, 20
+    measurement_rate: 100ms    # Options: 25ms, 50ms, 100ms, 200ms, 500ms, 1000ms, 2000ms
