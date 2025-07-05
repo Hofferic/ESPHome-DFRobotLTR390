@@ -20,6 +20,7 @@ CONFIG_SCHEMA = (
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
+    .extend(cv.polling_component_schema("60s"))  # Default update interval
     .extend(i2c.i2c_device_schema(0x1C))
 )
 
