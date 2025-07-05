@@ -8,7 +8,7 @@ MULTI_CONF = True
 
 dfrobot_ltr390_ns = cg.esphome_ns.namespace("dfrobot_ltr390")
 DFRobotLTR390Component = dfrobot_ltr390_ns.class_(
-    "DFRobotLTR390Component", cg.Component, i2c.I2CDevice
+    "DFRobotLTR390Component", cg.PollingComponent, i2c.I2CDevice
 )
 
 CONF_DFROBOT_LTR390_ID = "dfrobot_ltr390_id"
