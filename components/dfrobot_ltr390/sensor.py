@@ -9,7 +9,6 @@ from esphome.const import (
     DEVICE_CLASS_ILLUMINANCE,
     DEVICE_CLASS_IRRADIANCE,
     ICON_BRIGHTNESS_5,
-    ICON_WEATHER_SUNNY,
     STATE_CLASS_MEASUREMENT,
     UNIT_LUX,
 )
@@ -65,7 +64,7 @@ CONFIG_SCHEMA = cv.Schema(
             state_class=STATE_CLASS_MEASUREMENT,
         ),
         cv.Optional(CONF_UV_INDEX): sensor.sensor_schema(
-            icon=ICON_WEATHER_SUNNY,
+            icon=ICON_BRIGHTNESS_5,
             accuracy_decimals=2,
             device_class=DEVICE_CLASS_IRRADIANCE,
             state_class=STATE_CLASS_MEASUREMENT,
