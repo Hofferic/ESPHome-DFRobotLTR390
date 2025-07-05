@@ -7,7 +7,7 @@
 namespace esphome {
 namespace dfrobot_ltr390 {
 
-class DFRobotLTR390Component : public Component, public i2c::I2CDevice {
+class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
  public:
   void setup() override;
   void update() override;
