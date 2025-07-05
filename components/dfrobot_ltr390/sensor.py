@@ -73,8 +73,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_RESOLUTION, default=18): cv.enum(RESOLUTIONS, int=True),
         cv.Optional(CONF_MEASUREMENT_RATE, default="100ms"): validate_measurement_rate,
     }
-)
-.extend(cv.polling_component_schema("60s"))  # Default update interval
+).extend(cv.polling_component_schema("60s"))  # Default update interval
 
 
 async def to_code(config):
