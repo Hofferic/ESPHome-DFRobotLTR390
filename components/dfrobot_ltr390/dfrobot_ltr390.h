@@ -48,7 +48,7 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
   uint8_t read_register_(uint8_t reg);
   float calculate_lux_(uint32_t als_data);
   float calculate_uv_index_(uint32_t uvs_data);
-  uint8_t get_gain_factor_();
+  float get_gain_factor_();
   uint8_t get_resolution_bits_();
   uint32_t get_measurement_rate_ms_();
   
