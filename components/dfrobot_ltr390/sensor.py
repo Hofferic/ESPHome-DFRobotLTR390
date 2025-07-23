@@ -20,31 +20,34 @@ CONF_AMBIENT_LIGHT = "ambient_light"
 CONF_UV_INDEX = "uv_index"
 CONF_MEASUREMENT_RATE = "measurement_rate"
 
+# DFRobot specific gain mappings (from Python library)
 GAINS = {
-    1: 0x00,
-    3: 0x01,
-    6: 0x02,
-    9: 0x03,
-    18: 0x04,
+    1: 0,   # eGain1 = 0
+    3: 1,   # eGain3 = 1  
+    6: 2,   # eGain6 = 2
+    9: 3,   # eGain9 = 3
+    18: 4,  # eGain18 = 4
 }
 
+# DFRobot specific resolution mappings (from Python library)
 RESOLUTIONS = {
-    13: 0x00,
-    16: 0x01,
-    17: 0x02,
-    18: 0x03,
-    19: 0x04,
-    20: 0x05,
+    20: 0,  # e20bit = 0
+    19: 1,  # e19bit = 16 >> 4 = 1
+    18: 2,  # e18bit = 32 >> 4 = 2
+    17: 3,  # e17bit = 48 >> 4 = 3
+    16: 4,  # e16bit = 64 >> 4 = 4
+    13: 5,  # e13bit = 80 >> 4 = 5
 }
 
+# DFRobot specific measurement rate mappings
 MEASUREMENT_RATES = {
-    25: 0x00,
-    50: 0x01,
-    100: 0x02,
-    200: 0x03,
-    500: 0x04,
-    1000: 0x05,
-    2000: 0x06,
+    25: 0,    # e25ms = 0
+    50: 1,    # e50ms = 1
+    100: 2,   # e100ms = 2
+    200: 3,   # e200ms = 3
+    500: 4,   # e500ms = 4
+    1000: 5,  # e1000ms = 5
+    2000: 6,  # e2000ms = 6
 }
 
 def validate_measurement_rate(value):
