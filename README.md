@@ -1,5 +1,7 @@
 # ESPHome DFRobot LTR390 Custom Component
 
+# ! WARNING: full-on vibe coding and the code is suboptimal, this _seems_ to work correctly though
+
 This ESPHome custom component provides support for the DFRobot Gravity LTR390 UV and ambient light sensor (SEN0540).
 
 ## Features
