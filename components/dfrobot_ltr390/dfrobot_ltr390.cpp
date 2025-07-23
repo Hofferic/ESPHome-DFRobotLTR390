@@ -84,16 +84,28 @@ void DFRobotLTR390Component::start_als_reading_() {
   
   ESP_LOGD(TAG, "Starting ALS reading");
   this->reading_state_ = ReadingState::READING_ALS;
+  
+  // Set ALS mode and wait for it to stabilize
   this->set_mode_(true);  // ALS mode
   
-  // Schedule the reading after integration time
-  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 50;
+  // Wait longer for mode switch + integration time + buffer
+  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 200;  // Increased buffer
   this->set_timeout("als_read", wait_time, [this]() {
     this->read_als_data_();
   });
 }
 
 void DFRobotLTR390Component::read_als_data_() {
+  // Check multiple times if data is not ready initially
+  int retry_count = 0;
+  const int max_retries = 3;
+  
+  while (!this->is_data_ready_() && retry_count < max_retries) {
+    delay(50);  // Wait a bit more
+    retry_count++;
+    ESP_LOGD(TAG, "ALS data not ready, retry %d/%d", retry_count, max_retries);
+  }
+  
   if (this->is_data_ready_()) {
     auto als_data = this->read_register_24_(LTR390_ALSDATA);
     if (als_data.has_value()) {
@@ -104,11 +116,13 @@ void DFRobotLTR390Component::read_als_data_() {
       ESP_LOGW(TAG, "Failed to read ALS data register");
     }
   } else {
-    ESP_LOGW(TAG, "ALS data not ready");
+    ESP_LOGW(TAG, "ALS data not ready after retries");
   }
   
-  // Continue to UV reading
-  this->start_uv_reading_();
+  // Wait before switching to UV mode
+  this->set_timeout("switch_to_uv", 100, [this]() {
+    this->start_uv_reading_();
+  });
 }
 
 void DFRobotLTR390Component::start_uv_reading_() {
@@ -120,16 +134,28 @@ void DFRobotLTR390Component::start_uv_reading_() {
   
   ESP_LOGD(TAG, "Starting UV reading");
   this->reading_state_ = ReadingState::READING_UV;
+  
+  // Set UV mode and wait for it to stabilize
   this->set_mode_(false);  // UV mode
   
-  // Schedule the reading after integration time
-  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 50;
+  // Wait longer for mode switch + integration time + buffer
+  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 200;  // Increased buffer
   this->set_timeout("uv_read", wait_time, [this]() {
     this->read_uv_data_();
   });
 }
 
 void DFRobotLTR390Component::read_uv_data_() {
+  // Check multiple times if data is not ready initially
+  int retry_count = 0;
+  const int max_retries = 3;
+  
+  while (!this->is_data_ready_() && retry_count < max_retries) {
+    delay(50);  // Wait a bit more
+    retry_count++;
+    ESP_LOGD(TAG, "UVS data not ready, retry %d/%d", retry_count, max_retries);
+  }
+  
   if (this->is_data_ready_()) {
     auto uvs_data = this->read_register_24_(LTR390_UVSDATA);
     if (uvs_data.has_value()) {
@@ -140,7 +166,7 @@ void DFRobotLTR390Component::read_uv_data_() {
       ESP_LOGW(TAG, "Failed to read UVS data register");
     }
   } else {
-    ESP_LOGW(TAG, "UVS data not ready");
+    ESP_LOGW(TAG, "UVS data not ready after retries");
   }
   
   // Reading complete
@@ -148,12 +174,30 @@ void DFRobotLTR390Component::read_uv_data_() {
 }
 
 void DFRobotLTR390Component::set_mode_(bool als_mode) {
-  // The sensor needs to be enabled (bit 1) and mode set (bit 3 for UV)
+  // First disable the sensor
+  this->write_register_(LTR390_MAIN_CTRL, 0x00);
+  delay(10);  // Short delay to ensure disable takes effect
+  
+  // Then set the new mode and enable
   uint8_t ctrl_value = als_mode ? LTR390_CTRL_MODE_ALS : LTR390_CTRL_MODE_UVS;
   ctrl_value |= LTR390_CTRL_EN;  // Ensure sensor is enabled
-  this->write_register_(LTR390_MAIN_CTRL, ctrl_value);
+  
+  if (!this->write_register_(LTR390_MAIN_CTRL, ctrl_value)) {
+    ESP_LOGW(TAG, "Failed to set mode");
+    return;
+  }
+  
   this->is_als_mode_ = als_mode;
   ESP_LOGD(TAG, "Set mode to %s (ctrl=0x%02X)", als_mode ? "ALS" : "UVS", ctrl_value);
+  
+  // Wait for mode to stabilize
+  delay(20);
+  
+  // Verify the mode was set correctly
+  uint8_t readback = this->read_register_(LTR390_MAIN_CTRL);
+  if (readback != ctrl_value) {
+    ESP_LOGW(TAG, "Mode verification failed: wrote 0x%02X, read 0x%02X", ctrl_value, readback);
+  }
 }
 
 bool DFRobotLTR390Component::write_register_(uint8_t reg, uint8_t value) {
