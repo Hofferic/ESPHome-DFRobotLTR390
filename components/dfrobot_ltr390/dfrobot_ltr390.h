@@ -33,6 +33,13 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
   uint8_t measurement_rate_{0x02};  // Default: 100ms
   
   bool is_als_mode_{true};
+
+  enum class ReadingState {
+    IDLE,
+    READING_ALS,
+    READING_UV
+  };
+  ReadingState reading_state_{ReadingState::IDLE};
   
   // Register addresses
   static const uint8_t LTR390_MAIN_CTRL = 0x00;
@@ -57,7 +64,10 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
   static const uint8_t LTR390_STATUS_DATA_READY = 0x08;
 
   bool initialize_sensor_();
-  bool read_sensor_data_();
+  void start_als_reading_();
+  void read_als_data_();
+  void start_uv_reading_();
+  void read_uv_data_();
   bool write_register_(uint8_t reg, uint8_t value);
   uint8_t read_register_(uint8_t reg);
   optional<uint32_t> read_register_24_(uint8_t reg);
