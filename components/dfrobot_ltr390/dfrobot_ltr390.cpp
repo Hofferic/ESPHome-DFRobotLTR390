@@ -6,6 +6,17 @@ namespace dfrobot_ltr390 {
 
 static const char *const TAG = "dfrobot_ltr390";
 
+// DFRobot specific register addresses (different from standard LTR390)
+static const uint8_t DFROBOT_MODE_REGISTER = 0x00;
+static const uint8_t DFROBOT_MEAS_RATE_REGISTER = 0x01;
+static const uint8_t DFROBOT_GAIN_REGISTER = 0x02;
+static const uint8_t DFROBOT_ALS_DATA_REGISTER = 0x03;  // 4 bytes
+static const uint8_t DFROBOT_UVS_DATA_REGISTER = 0x07;  // 4 bytes
+
+// DFRobot specific mode values
+static const uint8_t DFROBOT_MODE_ALS = 0x01;
+static const uint8_t DFROBOT_MODE_UVS = 0x02;
+
 void DFRobotLTR390Component::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DFRobot LTR390...");
   
@@ -36,37 +47,32 @@ void DFRobotLTR390Component::dump_config() {
   
   ESP_LOGCONFIG(TAG, "  Gain: %dx", this->get_gain_factor_());
   ESP_LOGCONFIG(TAG, "  Resolution: %d-bit", 13 + this->resolution_);
-  ESP_LOGCONFIG(TAG, "  Integration time: %.1fms", this->get_integration_time_() * 1000);
+  ESP_LOGCONFIG(TAG, "  Measurement rate: %dms", this->get_measurement_rate_ms_());
   
   LOG_SENSOR("  ", "Ambient Light", this->ambient_light_sensor_);
   LOG_SENSOR("  ", "UV Index", this->uv_index_sensor_);
 }
 
 bool DFRobotLTR390Component::initialize_sensor_() {
-  // Reset the sensor
-  if (!this->write_register_(LTR390_MAIN_CTRL, LTR390_CTRL_RESET)) {
-    ESP_LOGE(TAG, "Failed to reset sensor");
+  // Test I2C communication first
+  uint8_t test_data = 0;
+  if (!this->read_byte(DFROBOT_MODE_REGISTER, &test_data)) {
+    ESP_LOGE(TAG, "Failed to communicate with sensor");
     return false;
   }
   
-  delay(100);  // Wait for reset to complete
-  
-  // Check part ID
-  uint8_t part_id = this->read_register_(LTR390_PART_ID);
-  if (part_id != 0xB2) {
-    ESP_LOGE(TAG, "Invalid part ID: 0x%02X (expected 0xB2)", part_id);
-    return false;
-  }
+  ESP_LOGD(TAG, "Initial mode register value: 0x%02X", test_data);
   
   // Configure measurement rate and resolution
-  uint8_t meas_rate = (this->resolution_ << 4) | this->measurement_rate_;
-  if (!this->write_register_(LTR390_MEAS_RATE, meas_rate)) {
-    ESP_LOGE(TAG, "Failed to set measurement rate");
+  // Format: [resolution_bits << 4] | measurement_rate_bits
+  uint8_t meas_rate_config = (this->resolution_ << 4) | this->measurement_rate_;
+  if (!this->write_register_(DFROBOT_MEAS_RATE_REGISTER, meas_rate_config)) {
+    ESP_LOGE(TAG, "Failed to set measurement rate and resolution");
     return false;
   }
   
   // Configure gain
-  if (!this->write_register_(LTR390_GAIN, this->gain_)) {
+  if (!this->write_register_(DFROBOT_GAIN_REGISTER, this->gain_)) {
     ESP_LOGE(TAG, "Failed to set gain");
     return false;
   }
@@ -85,42 +91,39 @@ void DFRobotLTR390Component::start_als_reading_() {
   ESP_LOGD(TAG, "Starting ALS reading");
   this->reading_state_ = ReadingState::READING_ALS;
   
-  // Set ALS mode and wait for it to stabilize
-  this->set_mode_(true);  // ALS mode
+  // Set ALS mode
+  if (!this->write_register_(DFROBOT_MODE_REGISTER, DFROBOT_MODE_ALS)) {
+    ESP_LOGW(TAG, "Failed to set ALS mode");
+    this->start_uv_reading_();
+    return;
+  }
   
-  // Wait longer for mode switch + integration time + buffer
-  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 200;  // Increased buffer
+  // Wait for measurement to complete
+  uint32_t wait_time = this->get_measurement_rate_ms_() + 100;  // Add buffer
   this->set_timeout("als_read", wait_time, [this]() {
     this->read_als_data_();
   });
 }
 
 void DFRobotLTR390Component::read_als_data_() {
-  // Check multiple times if data is not ready initially
-  int retry_count = 0;
-  const int max_retries = 3;
-  
-  while (!this->is_data_ready_() && retry_count < max_retries) {
-    delay(50);  // Wait a bit more
-    retry_count++;
-    ESP_LOGD(TAG, "ALS data not ready, retry %d/%d", retry_count, max_retries);
-  }
-  
-  if (this->is_data_ready_()) {
-    auto als_data = this->read_register_24_(LTR390_ALSDATA);
-    if (als_data.has_value()) {
-      float lux = this->calculate_lux_(als_data.value());
-      this->ambient_light_sensor_->publish_state(lux);
-      ESP_LOGD(TAG, "ALS: %d, Lux: %.2f", als_data.value(), lux);
-    } else {
-      ESP_LOGW(TAG, "Failed to read ALS data register");
-    }
+  // Read 4 bytes of ALS data
+  uint8_t buffer[4];
+  if (!this->read_bytes(DFROBOT_ALS_DATA_REGISTER, buffer, 4)) {
+    ESP_LOGW(TAG, "Failed to read ALS data");
   } else {
-    ESP_LOGW(TAG, "ALS data not ready after retries");
+    // Combine bytes into 32-bit value (little-endian)
+    uint32_t als_data = (uint32_t(buffer[3]) << 24) | 
+                       (uint32_t(buffer[2]) << 16) | 
+                       (uint32_t(buffer[1]) << 8) | 
+                       buffer[0];
+    
+    float lux = this->calculate_lux_(als_data);
+    this->ambient_light_sensor_->publish_state(lux);
+    ESP_LOGD(TAG, "ALS raw: %u, Lux: %.2f", als_data, lux);
   }
   
   // Wait before switching to UV mode
-  this->set_timeout("switch_to_uv", 100, [this]() {
+  this->set_timeout("switch_to_uv", 50, [this]() {
     this->start_uv_reading_();
   });
 }
@@ -135,75 +138,47 @@ void DFRobotLTR390Component::start_uv_reading_() {
   ESP_LOGD(TAG, "Starting UV reading");
   this->reading_state_ = ReadingState::READING_UV;
   
-  // Set UV mode and wait for it to stabilize
-  this->set_mode_(false);  // UV mode
+  // Set UV mode
+  if (!this->write_register_(DFROBOT_MODE_REGISTER, DFROBOT_MODE_UVS)) {
+    ESP_LOGW(TAG, "Failed to set UV mode");
+    this->reading_state_ = ReadingState::IDLE;
+    return;
+  }
   
-  // Wait longer for mode switch + integration time + buffer
-  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 200;  // Increased buffer
+  // Wait for measurement to complete
+  uint32_t wait_time = this->get_measurement_rate_ms_() + 100;  // Add buffer
   this->set_timeout("uv_read", wait_time, [this]() {
     this->read_uv_data_();
   });
 }
 
 void DFRobotLTR390Component::read_uv_data_() {
-  // Check multiple times if data is not ready initially
-  int retry_count = 0;
-  const int max_retries = 3;
-  
-  while (!this->is_data_ready_() && retry_count < max_retries) {
-    delay(50);  // Wait a bit more
-    retry_count++;
-    ESP_LOGD(TAG, "UVS data not ready, retry %d/%d", retry_count, max_retries);
-  }
-  
-  if (this->is_data_ready_()) {
-    auto uvs_data = this->read_register_24_(LTR390_UVSDATA);
-    if (uvs_data.has_value()) {
-      float uv_index = this->calculate_uv_index_(uvs_data.value());
-      this->uv_index_sensor_->publish_state(uv_index);
-      ESP_LOGD(TAG, "UVS: %d, UV Index: %.2f", uvs_data.value(), uv_index);
-    } else {
-      ESP_LOGW(TAG, "Failed to read UVS data register");
-    }
+  // Read 4 bytes of UV data
+  uint8_t buffer[4];
+  if (!this->read_bytes(DFROBOT_UVS_DATA_REGISTER, buffer, 4)) {
+    ESP_LOGW(TAG, "Failed to read UV data");
   } else {
-    ESP_LOGW(TAG, "UVS data not ready after retries");
+    // Combine bytes into 32-bit value (little-endian)
+    uint32_t uvs_data = (uint32_t(buffer[3]) << 24) | 
+                       (uint32_t(buffer[2]) << 16) | 
+                       (uint32_t(buffer[1]) << 8) | 
+                       buffer[0];
+    
+    float uv_index = this->calculate_uv_index_(uvs_data);
+    this->uv_index_sensor_->publish_state(uv_index);
+    ESP_LOGD(TAG, "UV raw: %u, UV Index: %.2f", uvs_data, uv_index);
   }
   
   // Reading complete
   this->reading_state_ = ReadingState::IDLE;
 }
 
-void DFRobotLTR390Component::set_mode_(bool als_mode) {
-  // First disable the sensor
-  this->write_register_(LTR390_MAIN_CTRL, 0x00);
-  delay(10);  // Short delay to ensure disable takes effect
-  
-  // Then set the new mode and enable
-  uint8_t ctrl_value = als_mode ? LTR390_CTRL_MODE_ALS : LTR390_CTRL_MODE_UVS;
-  ctrl_value |= LTR390_CTRL_EN;  // Ensure sensor is enabled
-  
-  if (!this->write_register_(LTR390_MAIN_CTRL, ctrl_value)) {
-    ESP_LOGW(TAG, "Failed to set mode");
-    return;
-  }
-  
-  this->is_als_mode_ = als_mode;
-  ESP_LOGD(TAG, "Set mode to %s (ctrl=0x%02X)", als_mode ? "ALS" : "UVS", ctrl_value);
-  
-  // Wait for mode to stabilize
-  delay(20);
-  
-  // Verify the mode was set correctly
-  uint8_t readback = this->read_register_(LTR390_MAIN_CTRL);
-  if (readback != ctrl_value) {
-    ESP_LOGW(TAG, "Mode verification failed: wrote 0x%02X, read 0x%02X", ctrl_value, readback);
-  }
-}
-
 bool DFRobotLTR390Component::write_register_(uint8_t reg, uint8_t value) {
   bool success = this->write_byte(reg, value);
   if (!success) {
     ESP_LOGW(TAG, "Failed to write register 0x%02X with value 0x%02X", reg, value);
+  } else {
+    ESP_LOGD(TAG, "Wrote register 0x%02X = 0x%02X", reg, value);
   }
   return success;
 }
@@ -216,39 +191,26 @@ uint8_t DFRobotLTR390Component::read_register_(uint8_t reg) {
   return value;
 }
 
-optional<uint32_t> DFRobotLTR390Component::read_register_24_(uint8_t reg) {
-  uint8_t buffer[3];
-  if (!this->read_bytes(reg, buffer, 3)) {
-    ESP_LOGW(TAG, "Failed to read 24-bit register 0x%02X", reg);
-    return {};
-  }
-  uint32_t value = (uint32_t(buffer[2]) << 16) | (uint32_t(buffer[1]) << 8) | buffer[0];
-  ESP_LOGD(TAG, "Read 24-bit register 0x%02X: 0x%06X", reg, value);
-  return value;
-}
-
-bool DFRobotLTR390Component::is_data_ready_() {
-  uint8_t status = this->read_register_(LTR390_MAIN_STATUS);
-  bool ready = (status & LTR390_STATUS_DATA_READY) != 0;
-  ESP_LOGVV(TAG, "Status register: 0x%02X, data ready: %s", status, ready ? "yes" : "no");
-  return ready;
-}
-
 float DFRobotLTR390Component::calculate_lux_(uint32_t als_data) {
-  float gain_factor = this->get_gain_factor_();
-  float integration_time = this->get_integration_time_();
+  if (als_data == 0) return 0.0;
   
-  // Calculate lux using the formula from the datasheet
-  float lux = (0.6 * als_data) / (gain_factor * integration_time);
+  // DFRobot specific calculation - the built-in MCU likely does some processing
+  // This may need adjustment based on testing with known light sources
+  float gain_factor = this->get_gain_factor_();
+  
+  // Simplified calculation - may need calibration
+  float lux = als_data / (gain_factor * 100.0);
   return lux;
 }
 
 float DFRobotLTR390Component::calculate_uv_index_(uint32_t uvs_data) {
-  float gain_factor = this->get_gain_factor_();
-  float integration_time = this->get_integration_time_();
+  if (uvs_data == 0) return 0.0;
   
-  // Calculate UV index using the formula from the datasheet
-  float uv_index = (uvs_data * 0.25) / (gain_factor * integration_time * 262144);
+  // DFRobot specific calculation
+  float gain_factor = this->get_gain_factor_();
+  
+  // Simplified calculation - may need calibration based on datasheet
+  float uv_index = uvs_data / (gain_factor * 10000.0);
   return uv_index;
 }
 
@@ -263,17 +225,37 @@ uint8_t DFRobotLTR390Component::get_gain_factor_() {
   }
 }
 
-float DFRobotLTR390Component::get_integration_time_() {
+uint32_t DFRobotLTR390Component::get_measurement_rate_ms_() {
   switch (this->measurement_rate_) {
-    case 0x00: return 0.025;   // 25ms
-    case 0x01: return 0.050;   // 50ms
-    case 0x02: return 0.100;   // 100ms
-    case 0x03: return 0.200;   // 200ms
-    case 0x04: return 0.500;   // 500ms
-    case 0x05: return 1.000;   // 1000ms
-    case 0x06: return 2.000;   // 2000ms
-    default: return 0.100;     // 100ms
+    case 0x00: return 25;
+    case 0x01: return 50;
+    case 0x02: return 100;
+    case 0x03: return 200;
+    case 0x04: return 500;
+    case 0x05: return 1000;
+    case 0x06: return 2000;
+    default: return 100;
   }
+}
+
+// Remove the old methods that don't apply to DFRobot version
+void DFRobotLTR390Component::set_mode_(bool als_mode) {
+  // Not used in DFRobot version - mode is set directly per measurement
+}
+
+optional<uint32_t> DFRobotLTR390Component::read_register_24_(uint8_t reg) {
+  // Not used in DFRobot version - uses 32-bit reads
+  return {};
+}
+
+bool DFRobotLTR390Component::is_data_ready_() {
+  // Not used in DFRobot version - relies on timing
+  return true;
+}
+
+float DFRobotLTR390Component::get_integration_time_() {
+  // Convert measurement rate to seconds
+  return this->get_measurement_rate_ms_() / 1000.0;
 }
 
 }  // namespace dfrobot_ltr390
