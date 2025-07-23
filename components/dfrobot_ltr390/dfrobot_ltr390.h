@@ -51,10 +51,6 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
   uint8_t get_gain_factor_();
   uint32_t get_measurement_rate_ms_();
   
-  // Legacy methods for compatibility - not used in DFRobot version
-  void set_mode_(bool als_mode);
-  optional<uint32_t> read_register_24_(uint8_t reg);
-  bool is_data_ready_();
   float get_integration_time_();
 };
 
