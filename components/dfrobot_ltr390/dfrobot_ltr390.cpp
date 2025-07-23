@@ -21,13 +21,8 @@ void DFRobotLTR390Component::setup() {
 void DFRobotLTR390Component::update() {
   ESP_LOGD(TAG, "Starting sensor update");
   
-  if (!this->read_sensor_data_()) {
-    ESP_LOGW(TAG, "Failed to read sensor data");
-    this->status_set_warning();
-    return;
-  }
-  
-  this->status_clear_warning();
+  this->reading_state_ = ReadingState::IDLE;
+  this->start_als_reading_();
 }
 
 void DFRobotLTR390Component::dump_config() {
@@ -80,73 +75,85 @@ bool DFRobotLTR390Component::initialize_sensor_() {
   return true;
 }
 
-bool DFRobotLTR390Component::read_sensor_data_() {
-  // Read ALS data if sensor is configured
-  if (this->ambient_light_sensor_ != nullptr) {
-    ESP_LOGD(TAG, "Reading ambient light sensor");
-    
-    this->set_mode_(true);  // ALS mode
-    delay(150);  // Wait for mode switch and measurement
-    
-    // Wait for data to be ready (with timeout)
-    uint32_t start_time = millis();
-    while (!this->is_data_ready_() && (millis() - start_time) < 500) {
-      delay(10);
-    }
-    
-    if (this->is_data_ready_()) {
-      auto als_data = this->read_register_24_(LTR390_ALSDATA);
-      if (als_data.has_value()) {
-        float lux = this->calculate_lux_(als_data.value());
-        this->ambient_light_sensor_->publish_state(lux);
-        ESP_LOGD(TAG, "ALS: %d, Lux: %.2f", als_data.value(), lux);
-      } else {
-        ESP_LOGW(TAG, "Failed to read ALS data register");
-        return false;
-      }
-    } else {
-      ESP_LOGW(TAG, "ALS data not ready after timeout");
-      return false;
-    }
+void DFRobotLTR390Component::start_als_reading_() {
+  if (this->ambient_light_sensor_ == nullptr) {
+    // Skip ALS, go to UV
+    this->start_uv_reading_();
+    return;
   }
   
-  // Read UV data if sensor is configured
-  if (this->uv_index_sensor_ != nullptr) {
-    ESP_LOGD(TAG, "Reading UV index sensor");
-    
-    this->set_mode_(false);  // UV mode
-    delay(150);  // Wait for mode switch and measurement
-    
-    // Wait for data to be ready (with timeout)
-    uint32_t start_time = millis();
-    while (!this->is_data_ready_() && (millis() - start_time) < 500) {
-      delay(10);
-    }
-    
-    if (this->is_data_ready_()) {
-      auto uvs_data = this->read_register_24_(LTR390_UVSDATA);
-      if (uvs_data.has_value()) {
-        float uv_index = this->calculate_uv_index_(uvs_data.value());
-        this->uv_index_sensor_->publish_state(uv_index);
-        ESP_LOGD(TAG, "UVS: %d, UV Index: %.2f", uvs_data.value(), uv_index);
-      } else {
-        ESP_LOGW(TAG, "Failed to read UVS data register");
-        return false;
-      }
+  ESP_LOGD(TAG, "Starting ALS reading");
+  this->reading_state_ = ReadingState::READING_ALS;
+  this->set_mode_(true);  // ALS mode
+  
+  // Schedule the reading after integration time
+  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 50;
+  this->set_timeout("als_read", wait_time, [this]() {
+    this->read_als_data_();
+  });
+}
+
+void DFRobotLTR390Component::read_als_data_() {
+  if (this->is_data_ready_()) {
+    auto als_data = this->read_register_24_(LTR390_ALSDATA);
+    if (als_data.has_value()) {
+      float lux = this->calculate_lux_(als_data.value());
+      this->ambient_light_sensor_->publish_state(lux);
+      ESP_LOGD(TAG, "ALS: %d, Lux: %.2f", als_data.value(), lux);
     } else {
-      ESP_LOGW(TAG, "UVS data not ready after timeout");
-      return false;
+      ESP_LOGW(TAG, "Failed to read ALS data register");
     }
+  } else {
+    ESP_LOGW(TAG, "ALS data not ready");
   }
   
-  return true;
+  // Continue to UV reading
+  this->start_uv_reading_();
+}
+
+void DFRobotLTR390Component::start_uv_reading_() {
+  if (this->uv_index_sensor_ == nullptr) {
+    // No UV sensor, we're done
+    this->reading_state_ = ReadingState::IDLE;
+    return;
+  }
+  
+  ESP_LOGD(TAG, "Starting UV reading");
+  this->reading_state_ = ReadingState::READING_UV;
+  this->set_mode_(false);  // UV mode
+  
+  // Schedule the reading after integration time
+  uint32_t wait_time = (uint32_t)(this->get_integration_time_() * 1000) + 50;
+  this->set_timeout("uv_read", wait_time, [this]() {
+    this->read_uv_data_();
+  });
+}
+
+void DFRobotLTR390Component::read_uv_data_() {
+  if (this->is_data_ready_()) {
+    auto uvs_data = this->read_register_24_(LTR390_UVSDATA);
+    if (uvs_data.has_value()) {
+      float uv_index = this->calculate_uv_index_(uvs_data.value());
+      this->uv_index_sensor_->publish_state(uv_index);
+      ESP_LOGD(TAG, "UVS: %d, UV Index: %.2f", uvs_data.value(), uv_index);
+    } else {
+      ESP_LOGW(TAG, "Failed to read UVS data register");
+    }
+  } else {
+    ESP_LOGW(TAG, "UVS data not ready");
+  }
+  
+  // Reading complete
+  this->reading_state_ = ReadingState::IDLE;
 }
 
 void DFRobotLTR390Component::set_mode_(bool als_mode) {
+  // The sensor needs to be enabled (bit 1) and mode set (bit 3 for UV)
   uint8_t ctrl_value = als_mode ? LTR390_CTRL_MODE_ALS : LTR390_CTRL_MODE_UVS;
+  ctrl_value |= LTR390_CTRL_EN;  // Ensure sensor is enabled
   this->write_register_(LTR390_MAIN_CTRL, ctrl_value);
   this->is_als_mode_ = als_mode;
-  ESP_LOGD(TAG, "Set mode to %s", als_mode ? "ALS" : "UVS");
+  ESP_LOGD(TAG, "Set mode to %s (ctrl=0x%02X)", als_mode ? "ALS" : "UVS", ctrl_value);
 }
 
 bool DFRobotLTR390Component::write_register_(uint8_t reg, uint8_t value) {
