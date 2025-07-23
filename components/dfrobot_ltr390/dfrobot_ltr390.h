@@ -55,7 +55,7 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
   static const uint8_t LTR390_THRESH_LOW = 0x24;
 
   // Control register values
-  static const uint8_t LTR390_CTRL_EN = 0x02;
+  static const uint8_t LTR390_CTRL_EN = 0x01;
   static const uint8_t LTR390_CTRL_MODE_ALS = 0x02;
   static const uint8_t LTR390_CTRL_MODE_UVS = 0x0A;
   static const uint8_t LTR390_CTRL_RESET = 0x10;
