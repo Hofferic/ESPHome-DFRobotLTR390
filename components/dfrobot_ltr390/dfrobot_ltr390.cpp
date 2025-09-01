@@ -36,11 +36,6 @@ DFRobotLTR390Component::DFRobotLTR390Component() {
   ESP_LOGD(TAG, "Component state: 0x%02X", this->get_component_state());
 }
 
-void DFRobotLTR390Component::set_component_state_(uint8_t state) {
-  ESP_LOGD(TAG, "Set Component state: 0x%02X -> 0x%02X", this->get_component_state(), state);
-  Component::set_component_state_(state);
-}
-
 void DFRobotLTR390Component::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DFRobot LTR390...");
   
