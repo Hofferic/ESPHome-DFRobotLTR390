@@ -40,8 +40,6 @@ float DFRobotLTR390Component::get_setup_priority() const { return setup_priority
 
 void DFRobotLTR390Component::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DFRobot LTR390...");
-  // Small startup delay to let I²C settle
-  delay(50); 
   
   if (!this->initialize_sensor_()) {
     ESP_LOGE(TAG, "Failed to initialize sensor");
@@ -98,6 +96,9 @@ bool DFRobotLTR390Component::initialize_sensor_() {
     ESP_LOGE(TAG, "Failed to set gain");
     return false;
   }
+
+  // Small startup delay to let I²C settle
+  delay(50); 
   
   // Configure measurement rate and resolution (using holding register with +5 offset)
   uint8_t meas_rate_config = (this->resolution_ << 4) | this->measurement_rate_;
