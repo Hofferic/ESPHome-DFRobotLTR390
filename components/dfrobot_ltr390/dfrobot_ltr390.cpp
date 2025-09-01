@@ -57,11 +57,6 @@ void DFRobotLTR390Component::update() {
 
 void DFRobotLTR390Component::dump_config() {
   ESP_LOGCONFIG(TAG, "DFRobot LTR390:");
-  ESP_LOGD(TAG, "Component state: 0x%02X", this->get_component_state());
-
-  if (this->is_failed()) {
-    ESP_LOGE(TAG, "Communication with DFRobot LTR390 failed before i2c log!");
-  }
   LOG_I2C_DEVICE(this);
   
   if (this->is_failed()) {
