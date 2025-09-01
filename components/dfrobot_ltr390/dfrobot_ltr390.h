@@ -9,6 +9,7 @@ namespace dfrobot_ltr390 {
 
 class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice, public sensor::Sensor {
  public:
+  DFRobotLTR390Component::DFRobotLTR390Component() 
   void setup() override;
   void update() override;
   void dump_config() override;
