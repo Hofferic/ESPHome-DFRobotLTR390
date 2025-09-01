@@ -34,6 +34,16 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice, p
   uint8_t measurement_rate_{0x02};  // Default: 100ms
   float last_lux_{NAN};
   float last_uvi_{NAN};
+  bool dedupe(float new_value, float &last_value, float tol = 2.0f) {
+    if (isnan(new_value)) {
+      return false;
+    }
+    if (isnan(last_value) || fabsf(new_value - last_value) > tol) {
+      last_value = new_value;
+      return true;
+    }
+    return false;
+  }
 
   enum class ReadingState {
     IDLE,
