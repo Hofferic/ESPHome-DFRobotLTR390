@@ -98,7 +98,7 @@ bool DFRobotLTR390Component::initialize_sensor_() {
   }
 
   // Small startup delay to let I²C settle
-  delay(50); 
+  vTaskDelay(pdMS_TO_TICKS(50));
   
   // Configure measurement rate and resolution (using holding register with +5 offset)
   uint8_t meas_rate_config = (this->resolution_ << 4) | this->measurement_rate_;
