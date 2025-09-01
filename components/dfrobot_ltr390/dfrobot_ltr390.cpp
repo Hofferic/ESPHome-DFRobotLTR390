@@ -38,6 +38,8 @@ DFRobotLTR390Component::DFRobotLTR390Component() {
 
 void DFRobotLTR390Component::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DFRobot LTR390...");
+  // Small startup delay to let I²C settle
+  delay(50); 
   
   if (!this->initialize_sensor_()) {
     ESP_LOGE(TAG, "Failed to initialize sensor");
