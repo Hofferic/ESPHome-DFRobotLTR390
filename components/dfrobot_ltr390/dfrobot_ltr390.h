@@ -32,6 +32,8 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice, p
   uint8_t gain_{0x01};  // Default: 3x gain
   uint8_t resolution_{0x02};  // Default: 18-bit
   uint8_t measurement_rate_{0x02};  // Default: 100ms
+  float last_lux_{NAN};
+  float last_uvi_{NAN};
 
   enum class ReadingState {
     IDLE,

@@ -150,7 +150,10 @@ void DFRobotLTR390Component::read_als_data_() {
                        (uint32_t(buffer[1]) << 8);
     
     float lux = this->calculate_lux_(als_data);
-    this->ambient_light_sensor_->publish_state(lux);
+    if (this->last_lux_ != lux) {
+      this->ambient_light_sensor_->publish_state(lux);
+      this->last_lux_ = lux;
+    }
     ESP_LOGD(TAG, "ALS raw: %u (0x%02X %02X %02X %02X), Lux: %.2f", 
              als_data, buffer[0], buffer[1], buffer[2], buffer[3], lux);
   }
@@ -199,7 +202,10 @@ void DFRobotLTR390Component::read_uv_data_() {
                        (uint32_t(buffer[1]) << 8);
     
     float uv_index = this->calculate_uv_index_(uvs_data);
-    this->uv_index_sensor_->publish_state(uv_index);
+    if (this->last_uvi_ != uv_index) {
+      this->uv_index_sensor_->publish_state(uv_index);
+      this->last_uvi_ = uv_index;
+    }
     ESP_LOGD(TAG, "UV raw: %u (0x%02X %02X %02X %02X), UV Index: %.2f", 
              uvs_data, buffer[0], buffer[1], buffer[2], buffer[3], uv_index);
   }
