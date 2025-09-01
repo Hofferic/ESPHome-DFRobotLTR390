@@ -51,7 +51,7 @@ void DFRobotLTR390Component::setup() {
 }
 
 void DFRobotLTR390Component::update() {
-  ESP_LOGD(TAG, "Starting sensor update");
+  ESP_LOGV(TAG, "Starting sensor update");
   
   this->reading_state_ = ReadingState::IDLE;
   this->start_als_reading_();
@@ -119,7 +119,7 @@ void DFRobotLTR390Component::start_als_reading_() {
     return;
   }
   
-  ESP_LOGD(TAG, "Starting ALS reading");
+  ESP_LOGV(TAG, "Starting ALS reading");
   this->reading_state_ = ReadingState::READING_ALS;
   
   // Set ALS mode (using holding register with +5 offset)
@@ -154,7 +154,7 @@ void DFRobotLTR390Component::read_als_data_() {
       this->ambient_light_sensor_->publish_state(lux);
       this->last_lux_ = lux;
     }
-    ESP_LOGD(TAG, "ALS raw: %u (0x%02X %02X %02X %02X), Lux: %.2f", 
+    ESP_LOGV(TAG, "ALS raw: %u (0x%02X %02X %02X %02X), Lux: %.2f", 
              als_data, buffer[0], buffer[1], buffer[2], buffer[3], lux);
   }
   
@@ -171,7 +171,7 @@ void DFRobotLTR390Component::start_uv_reading_() {
     return;
   }
   
-  ESP_LOGD(TAG, "Starting UV reading");
+  ESP_LOGV(TAG, "Starting UV reading");
   this->reading_state_ = ReadingState::READING_UV;
   
   // Set UV mode (using holding register with +5 offset)
@@ -206,7 +206,7 @@ void DFRobotLTR390Component::read_uv_data_() {
       this->uv_index_sensor_->publish_state(uv_index);
       this->last_uvi_ = uv_index;
     }
-    ESP_LOGD(TAG, "UV raw: %u (0x%02X %02X %02X %02X), UV Index: %.2f", 
+    ESP_LOGV(TAG, "UV raw: %u (0x%02X %02X %02X %02X), UV Index: %.2f", 
              uvs_data, buffer[0], buffer[1], buffer[2], buffer[3], uv_index);
   }
   
