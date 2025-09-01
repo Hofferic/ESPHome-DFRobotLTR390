@@ -30,6 +30,12 @@ static const uint8_t DEV_ADDRESS = 0x1C;
 static const float GAIN_VALUES[] = {1.0, 3.0, 6.0, 9.0, 18.0};
 static const float INT_TIME_VALUES[] = {4.0, 2.0, 1.0, 0.5, 0.25, 0.25}; // seconds
 
+// todo: constructor mit logging, da componetn_state_ setzen?
+DFRobotLTR390Component::DFRobotLTR390Component() {
+  ESP_LOGD(TAG, "Constructor called - component created");
+  ESP_LOGD(TAG, "Component state: 0x%02X", this->get_component_state());
+}
+
 void DFRobotLTR390Component::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DFRobot LTR390...");
   
@@ -51,6 +57,7 @@ void DFRobotLTR390Component::update() {
 
 void DFRobotLTR390Component::dump_config() {
   ESP_LOGCONFIG(TAG, "DFRobot LTR390:");
+  ESP_LOGD(TAG, "Component state: 0x%02X", this->get_component_state());
 
   if (this->is_failed()) {
     ESP_LOGE(TAG, "Communication with DFRobot LTR390 failed before i2c log!");
