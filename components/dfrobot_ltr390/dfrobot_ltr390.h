@@ -13,7 +13,7 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice, p
   void setup() override;
   void update() override;
   void dump_config() override;
-  float get_setup_priority() const override { return setup_priority::LATE; }
+  float get_setup_priority() const override;
 
   void set_ambient_light_sensor(sensor::Sensor *ambient_light_sensor) {
     ambient_light_sensor_ = ambient_light_sensor;

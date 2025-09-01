@@ -36,6 +36,8 @@ DFRobotLTR390Component::DFRobotLTR390Component() {
   ESP_LOGD(TAG, "Component state: 0x%02X", this->get_component_state());
 }
 
+float DFRobotLTR390Component::get_setup_priority() const { return setup_priority::LATE; }
+
 void DFRobotLTR390Component::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DFRobot LTR390...");
   // Small startup delay to let I²C settle
