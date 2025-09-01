@@ -30,8 +30,6 @@ static const uint8_t DEV_ADDRESS = 0x1C;
 static const float GAIN_VALUES[] = {1.0, 3.0, 6.0, 9.0, 18.0};
 static const float INT_TIME_VALUES[] = {4.0, 2.0, 1.0, 0.5, 0.25, 0.25}; // seconds
 
-float DFRobotLTR390Component::get_setup_priority() const { return setup_priority::DATA; }
-
 void DFRobotLTR390Component::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DFRobot LTR390...");
   
