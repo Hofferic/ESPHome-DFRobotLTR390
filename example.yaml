@@ -36,11 +36,11 @@ i2c:
 dfrobot_ltr390:
   - id: my_ltr390
     address: 0x1C
-    
+    update_interval: 60s
+
 sensor:
   - platform: dfrobot_ltr390
     dfrobot_ltr390_id: my_ltr390
-    update_interval: 60s
     
     # Configure which sensors you want
     ambient_light:

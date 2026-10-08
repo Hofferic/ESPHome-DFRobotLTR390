@@ -45,12 +45,12 @@ i2c:
 dfrobot_ltr390:
   - id: my_ltr390
     address: 0x1C  # Default address
+    update_interval: 60s
 
 # Sensors
 sensor:
   - platform: dfrobot_ltr390
     dfrobot_ltr390_id: my_ltr390
-    update_interval: 60s
     
     ambient_light:
       name: "Ambient Light"
@@ -71,16 +71,18 @@ sensor:
 
 - **id** (*Required*): The component ID
 - **address** (*Optional*, int): I2C address (default: 0x1C)
+- **update_interval** (*Optional*, time): How often the sensor is read (default: 60s)
 
 ### Sensor Configuration
 
 - **dfrobot_ltr390_id** (*Required*): The hub component ID
-- **update_interval** (*Optional*, time): Update interval (default: 60s)
+- **update_interval** (*Optional*, time): Accepted for compatibility but has no effect; set it on the hub instead
 - **ambient_light** (*Optional*): Ambient light sensor configuration
 - **uv_index** (*Optional*): UV index sensor configuration
 - **gain** (*Optional*, int): Sensor gain (1, 3, 6, 9, 18) (default: 3)
 - **resolution** (*Optional*, int): ADC resolution in bits (13-20) (default: 18)
 - **measurement_rate** (*Optional*, time): Measurement rate (25ms to 2000ms) (default: 100ms)
+- **min_change** (*Optional*, float): Only publish a reading that differs from the last published one by more than this (default: 2.0). Set to 0 to publish every reading and use ESPHome sensor filters instead.
 
 ## Wiring
 

@@ -18,6 +18,7 @@ DEPENDENCIES = ["dfrobot_ltr390"]
 CONF_AMBIENT_LIGHT = "ambient_light"
 CONF_UV_INDEX = "uv_index"
 CONF_MEASUREMENT_RATE = "measurement_rate"
+CONF_MIN_CHANGE = "min_change"
 
 UNIT_UVI = "UVI"
 
@@ -76,6 +77,9 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_GAIN, default=3): cv.enum(GAINS, int=True),
         cv.Optional(CONF_RESOLUTION, default=18): cv.enum(RESOLUTIONS, int=True),
         cv.Optional(CONF_MEASUREMENT_RATE, default="100ms"): validate_measurement_rate,
+        # Only publish when the value changed by more than this; 0 publishes every
+        # change so sensor filters (delta, heartbeat, ...) can do the work instead.
+        cv.Optional(CONF_MIN_CHANGE, default=2.0): cv.positive_float,
     }
 ).extend(cv.polling_component_schema("60s"))  # Default update interval
 
@@ -96,3 +100,4 @@ async def to_code(config):
     cg.add(parent.set_gain(GAINS[config[CONF_GAIN]]))
     cg.add(parent.set_resolution(RESOLUTIONS[config[CONF_RESOLUTION]]))
     cg.add(parent.set_measurement_rate(MEASUREMENT_RATES[config[CONF_MEASUREMENT_RATE]]))
+    cg.add(parent.set_min_change(config[CONF_MIN_CHANGE]))

@@ -26,6 +26,7 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
   void set_gain(uint8_t gain) { gain_ = gain; }
   void set_resolution(uint8_t resolution) { resolution_ = resolution; }
   void set_measurement_rate(uint8_t measurement_rate) { measurement_rate_ = measurement_rate; }
+  void set_min_change(float min_change) { min_change_ = min_change; }
 
  protected:
   sensor::Sensor *ambient_light_sensor_{nullptr};
@@ -34,13 +35,18 @@ class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
   uint8_t gain_{0x01};  // Default: 3x gain
   uint8_t resolution_{0x02};  // Default: 18-bit
   uint8_t measurement_rate_{0x02};  // Default: 100ms
+  float min_change_{2.0f};
   float last_lux_{NAN};
   float last_uvi_{NAN};
-  bool dedupe(float new_value, float &last_value, float tol = 2.0f) {
+  bool dedupe(float new_value, float &last_value) {
     if (std::isnan(new_value)) {
       return false;
     }
-    if (std::isnan(last_value) || fabsf(new_value - last_value) > tol) {
+    if (this->min_change_ <= 0.0f) {
+      last_value = new_value;
+      return true;
+    }
+    if (std::isnan(last_value) || fabsf(new_value - last_value) > this->min_change_) {
       last_value = new_value;
       return true;
     }
