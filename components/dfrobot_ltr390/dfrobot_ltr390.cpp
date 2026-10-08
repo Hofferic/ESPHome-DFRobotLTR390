@@ -1,5 +1,8 @@
 #include "dfrobot_ltr390.h"
+#include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+
+#include <cinttypes>
 
 namespace esphome {
 namespace dfrobot_ltr390 {
@@ -29,12 +32,6 @@ static const uint8_t DEV_ADDRESS = 0x1C;
 // Gain and integration time lookup tables (from Python library)
 static const float GAIN_VALUES[] = {1.0, 3.0, 6.0, 9.0, 18.0};
 static const float INT_TIME_VALUES[] = {4.0, 2.0, 1.0, 0.5, 0.25, 0.25}; // seconds
-
-// todo: constructor mit logging, da componetn_state_ setzen?
-DFRobotLTR390Component::DFRobotLTR390Component() {
-  ESP_LOGD(TAG, "Constructor called - component created");
-  ESP_LOGD(TAG, "Component state: 0x%02X", this->get_component_state());
-}
 
 float DFRobotLTR390Component::get_setup_priority() const { return setup_priority::LATE; }
 
@@ -67,8 +64,8 @@ void DFRobotLTR390Component::dump_config() {
   }
   
   ESP_LOGCONFIG(TAG, "  Gain: %.0fx", this->get_gain_factor_());
-  ESP_LOGCONFIG(TAG, "  Resolution: %d-bit", this->get_resolution_bits_());
-  ESP_LOGCONFIG(TAG, "  Measurement rate: %dms", this->get_measurement_rate_ms_());
+  ESP_LOGCONFIG(TAG, "  Resolution: %u-bit", this->get_resolution_bits_());
+  ESP_LOGCONFIG(TAG, "  Measurement rate: %" PRIu32 "ms", this->get_measurement_rate_ms_());
   
   LOG_SENSOR("  ", "Ambient Light", this->ambient_light_sensor_);
   LOG_SENSOR("  ", "UV Index", this->uv_index_sensor_);
@@ -98,7 +95,7 @@ bool DFRobotLTR390Component::initialize_sensor_() {
   }
 
   // Small startup delay to let I²C settle
-  vTaskDelay(pdMS_TO_TICKS(50));
+  delay(50);
   
   // Configure measurement rate and resolution (using holding register with +5 offset)
   uint8_t meas_rate_config = (this->resolution_ << 4) | this->measurement_rate_;
@@ -153,7 +150,7 @@ void DFRobotLTR390Component::read_als_data_() {
     if (this->dedupe(lux, this->last_lux_)) {
       this->ambient_light_sensor_->publish_state(lux);
     }
-    ESP_LOGV(TAG, "ALS raw: %u (0x%02X %02X %02X %02X), Lux: %.2f", 
+    ESP_LOGV(TAG, "ALS raw: %" PRIu32 " (0x%02X %02X %02X %02X), Lux: %.2f", 
              als_data, buffer[0], buffer[1], buffer[2], buffer[3], lux);
   }
   
@@ -204,7 +201,7 @@ void DFRobotLTR390Component::read_uv_data_() {
     if (this->dedupe(uv_index, this->last_uvi_)) {
       this->uv_index_sensor_->publish_state(uv_index);
     }
-    ESP_LOGV(TAG, "UV raw: %u (0x%02X %02X %02X %02X), UV Index: %.2f", 
+    ESP_LOGV(TAG, "UV raw: %" PRIu32 " (0x%02X %02X %02X %02X), UV Index: %.2f", 
              uvs_data, buffer[0], buffer[1], buffer[2], buffer[3], uv_index);
   }
   

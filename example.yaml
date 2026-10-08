@@ -1,7 +1,10 @@
 esphome:
   name: dfrobot-ltr390-example
-  platform: ESP32
+
+esp32:
   board: esp32dev
+  framework:
+    type: esp-idf
 
 wifi:
   ssid: "your-wifi-ssid"
@@ -12,7 +15,8 @@ api:
     key: "your-api-key"
 
 ota:
-  password: "your-ota-password"
+  - platform: esphome
+    password: "your-ota-password"
 
 logger:
 

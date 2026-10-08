@@ -5,12 +5,13 @@
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/i2c/i2c.h"
 
+#include <cmath>
+
 namespace esphome {
 namespace dfrobot_ltr390 {
 
-class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice, public sensor::Sensor {
+class DFRobotLTR390Component : public PollingComponent, public i2c::I2CDevice {
  public:
-  DFRobotLTR390Component();
   void setup() override;
   void update() override;
   void dump_config() override;

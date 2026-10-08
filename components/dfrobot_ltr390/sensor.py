@@ -7,7 +7,6 @@ from esphome.const import (
     CONF_RESOLUTION,
     CONF_UPDATE_INTERVAL,
     DEVICE_CLASS_ILLUMINANCE,
-    DEVICE_CLASS_IRRADIANCE,
     ICON_BRIGHTNESS_5,
     STATE_CLASS_MEASUREMENT,
     UNIT_LUX,
@@ -19,6 +18,8 @@ DEPENDENCIES = ["dfrobot_ltr390"]
 CONF_AMBIENT_LIGHT = "ambient_light"
 CONF_UV_INDEX = "uv_index"
 CONF_MEASUREMENT_RATE = "measurement_rate"
+
+UNIT_UVI = "UVI"
 
 # DFRobot specific gain mappings (from Python library)
 GAINS = {
@@ -67,9 +68,9 @@ CONFIG_SCHEMA = cv.Schema(
             state_class=STATE_CLASS_MEASUREMENT,
         ),
         cv.Optional(CONF_UV_INDEX): sensor.sensor_schema(
+            unit_of_measurement=UNIT_UVI,
             icon=ICON_BRIGHTNESS_5,
             accuracy_decimals=2,
-            device_class=DEVICE_CLASS_IRRADIANCE,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
         cv.Optional(CONF_GAIN, default=3): cv.enum(GAINS, int=True),
